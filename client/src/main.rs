@@ -1,24 +1,18 @@
+mod command;
 mod common;
 mod deploy;
 mod generate_completion;
 mod keygen;
 
-use clap::{crate_description, crate_version, App, ArgMatches};
+use clap::{crate_description, crate_version, App};
 
-use deploy::{GetDeploy, ListDeploys, PutDeploy, Transfer};
+use deploy::{GetBalance, GetDeploy, ListDeploys, PutDeploy, Transfer};
 use generate_completion::GenerateCompletion;
 use keygen::Keygen;
 
-const APP_NAME: &str = "Casper client";
+use command::ClientCommand;
 
-pub trait Subcommand<'a, 'b> {
-    const NAME: &'static str;
-    const ABOUT: &'static str;
-    /// Constructs the clap `SubCommand` and returns the clap `App`.
-    fn build(display_order: usize) -> App<'a, 'b>;
-    /// Parses the arg matches and runs the subcommand.
-    fn run(matches: &ArgMatches<'_>);
-}
+const APP_NAME: &str = "Casper client";
 
 /// This struct defines the order in which the subcommands are shown in the app's help message.
 enum DisplayOrder {
@@ -28,6 +22,7 @@ enum DisplayOrder {
     ListDeploys,
     Keygen,
     GenerateCompletion,
+    GetBalance,
 }
 
 fn cli<'a, 'b>() -> App<'a, 'b> {
@@ -42,6 +37,7 @@ fn cli<'a, 'b>() -> App<'a, 'b> {
         .subcommand(GenerateCompletion::build(
             DisplayOrder::GenerateCompletion as usize,
         ))
+        .subcommand(GetBalance::build(DisplayOrder::GetBalance as usize))
 }
 
 #[tokio::main]
@@ -54,6 +50,7 @@ async fn main() {
         (ListDeploys::NAME, Some(matches)) => ListDeploys::run(matches),
         (Keygen::NAME, Some(matches)) => Keygen::run(matches),
         (GenerateCompletion::NAME, Some(matches)) => GenerateCompletion::run(matches),
+        (GetBalance::NAME, Some(matches)) => GetBalance::run(matches),
         _ => panic!("You must choose a subcommand to execute"),
     }
 }
