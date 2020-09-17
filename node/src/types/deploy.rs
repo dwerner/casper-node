@@ -13,6 +13,7 @@ use itertools::Itertools;
 use rand::RngCore;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::{json, Value as JsonValue};
 use thiserror::Error;
 use tracing::warn;
 
@@ -286,15 +287,15 @@ impl Deploy {
         self.header
     }
 
-    /// Try to convert the `Deploy` to JSON-encoded string.
-    pub fn to_json(&self) -> Result<String, Error> {
-        let json = json::JsonDeploy::from(self);
-        Ok(serde_json::to_string(&json)?)
+    /// Convert the `Deploy` to a JSON value.
+    pub fn to_json(&self) -> JsonValue {
+        let json_deploy = json::JsonDeploy::from(self);
+        json!(json_deploy)
     }
 
-    /// Try to convert the JSON-encoded string to a `Deploy`.
-    pub fn from_json(input: &str) -> Result<Self, Error> {
-        let json: json::JsonDeploy = serde_json::from_str(input)?;
+    /// Try to convert the JSON value to a `Deploy`.
+    pub fn from_json(input: JsonValue) -> Result<Self, Error> {
+        let json: json::JsonDeploy = serde_json::from_value(input)?;
         let deploy = Deploy::try_from(json)?;
 
         // Serialize and deserialize to run validity checks in deserialization.
@@ -838,8 +839,8 @@ mod tests {
     fn json_roundtrip() {
         let mut rng = TestRng::new();
         let deploy = Deploy::random(&mut rng);
-        let json = deploy.to_json().unwrap();
-        let decoded = Deploy::from_json(&json).unwrap();
+        let json = deploy.to_json().to_string();
+        let decoded = Deploy::from_json(JsonValue::from(json.as_str())).unwrap();
         assert_eq!(deploy, decoded);
     }
 
