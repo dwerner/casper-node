@@ -164,7 +164,8 @@ where
                 return Ok(CommitResult::KeyNotFound(key));
             }
             (ReadResult::Found(current_value), transform) => match transform.apply(current_value) {
-                Ok(updated_value) => updated_value,
+                Ok(Some(updated_value)) => updated_value,
+                Ok(None) => todo!("restructure"),
                 Err(err) => return Ok(err.into()),
             },
             _x @ (ReadResult::RootNotFound, _) => panic!(stringify!(_x._1)),

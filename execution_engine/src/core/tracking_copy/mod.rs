@@ -375,11 +375,14 @@ impl<R: StateReader<Key, StoredValue>> TrackingCopy<R> {
         };
 
         match transform.clone().apply(current_value) {
-            Ok(new_value) => {
+            Ok(Some(new_value)) => {
                 self.cache.insert_write(normalized_key, new_value);
                 self.ops.insert_add(normalized_key, Op::Add);
                 self.fns.insert_add(normalized_key, transform);
                 Ok(AddResult::Success)
+            }
+            Ok(None) => {
+                todo!()
             }
             Err(transform::Error::TypeMismatch(type_mismatch)) => {
                 Ok(AddResult::TypeMismatch(type_mismatch))
