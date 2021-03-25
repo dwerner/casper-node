@@ -44,6 +44,7 @@ const OP_READ_TAG: u8 = 0;
 const OP_WRITE_TAG: u8 = 1;
 const OP_ADD_TAG: u8 = 2;
 const OP_NOOP_TAG: u8 = 3;
+const OP_DELETE_TAG: u8 = 4;
 
 /// Constants to track Transform serialization.
 const TRANSFORM_IDENTITY_TAG: u8 = 0;
@@ -367,6 +368,8 @@ pub enum OpKind {
     Add,
     /// An operation which has no effect.
     NoOp,
+    /// A delete operation.
+    Delete,
 }
 
 impl ToBytes for OpKind {
@@ -376,6 +379,7 @@ impl ToBytes for OpKind {
             OpKind::Write => OP_WRITE_TAG.to_bytes(),
             OpKind::Add => OP_ADD_TAG.to_bytes(),
             OpKind::NoOp => OP_NOOP_TAG.to_bytes(),
+            OpKind::Delete => OP_DELETE_TAG.to_bytes(),
         }
     }
 
@@ -392,6 +396,7 @@ impl FromBytes for OpKind {
             OP_WRITE_TAG => Ok((OpKind::Write, remainder)),
             OP_ADD_TAG => Ok((OpKind::Add, remainder)),
             OP_NOOP_TAG => Ok((OpKind::NoOp, remainder)),
+            OP_DELETE_TAG => Ok((OpKind::Delete, remainder)),
             _ => Err(bytesrepr::Error::Formatting),
         }
     }
