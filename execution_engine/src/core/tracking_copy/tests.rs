@@ -1095,7 +1095,7 @@ fn write_delete_read_from_tracking_copy() {
         .expect("should have view");
     let mut tracking_copy = TrackingCopy::new(view);
 
-    tracking_copy.write(uref_1_key.clone(), uref_1_value.clone());
+    tracking_copy.write(uref_1_key, uref_1_value.clone());
     check_effect(
         &tracking_copy,
         &uref_1_key,
@@ -1110,7 +1110,7 @@ fn write_delete_read_from_tracking_copy() {
         Op::Write,
         Transform::Write(uref_1_value.clone()),
     );
-    assert_eq!(Some(uref_1_value.clone()), read, "value should be present");
+    assert_eq!(Some(uref_1_value), read, "value should be present");
 
     tracking_copy.delete(&uref_1_key);
     check_effect(&tracking_copy, &uref_1_key, Op::Delete, Transform::Delete);
@@ -1142,7 +1142,7 @@ fn delete_read_write_read_from_tracking_copy() {
     check_effect(&tracking_copy, &uref_1_key, Op::Delete, Transform::Delete);
     assert_eq!(None, read, "no value should be present");
 
-    tracking_copy.write(uref_1_key.clone(), uref_1_value.clone());
+    tracking_copy.write(uref_1_key, uref_1_value.clone());
     check_effect(
         &tracking_copy,
         &uref_1_key,
@@ -1174,8 +1174,8 @@ fn keys_cache_handles_delete_correctly() {
     let (global_state, root_hash) = InMemoryGlobalState::from_pairs(
         correlation_id,
         &[
-            (uref_1_key.clone(), uref_1_value.clone()),
-            (uref_2_key.clone(), uref_2_value.clone()),
+            (uref_1_key, uref_1_value.clone()),
+            (uref_2_key, uref_2_value.clone()),
         ],
     )
     .unwrap();
@@ -1208,7 +1208,7 @@ fn keys_cache_handles_delete_correctly() {
     assert!(!keys.contains(&uref_1_key.normalize()));
     assert!(keys.contains(&uref_2_key.normalize()));
 
-    tracking_copy.write(uref_1_key.clone(), uref_1_value.clone());
+    tracking_copy.write(uref_1_key, uref_1_value.clone());
     check_effect(
         &tracking_copy,
         &uref_1_key,
