@@ -166,7 +166,17 @@ impl Executor {
             transfers,
         );
 
-        let mut runtime = Runtime::new(self.config, system_contract_cache, memory, module, context);
+        println!("base_key: {:?}", base_key);
+        let mut call_stack = vec![base_key];
+
+        let mut runtime = Runtime::new(
+            self.config,
+            system_contract_cache,
+            memory,
+            module,
+            context,
+            &mut call_stack,
+        );
 
         let accounts_access_rights = {
             let keys: Vec<Key> = account.named_keys().values().cloned().collect();
@@ -259,6 +269,8 @@ impl Executor {
             runtime.context().transfers().to_owned()
         );
 
+        println!("exec: {:?}", runtime.call_stack());
+
         ExecutionResult::Success {
             effect: runtime.context().effect(),
             transfers: runtime.context().transfers().to_owned(),
@@ -302,6 +314,8 @@ impl Executor {
             Rc::new(RefCell::new(generator))
         };
 
+        let mut call_stack = vec![payment_base_key];
+
         let mut runtime = match self.create_runtime(
             system_module,
             EntryPointType::Session,
@@ -323,6 +337,7 @@ impl Executor {
             phase,
             protocol_data,
             system_contract_cache,
+            &mut call_stack,
         ) {
             Ok((_instance, runtime)) => runtime,
             Err(error) => {
@@ -435,6 +450,8 @@ impl Executor {
 
         let transfers = Vec::default();
 
+        let mut call_stack = vec![base_key];
+
         let (_, runtime) = match self.create_runtime(
             module,
             EntryPointType::Contract,
@@ -456,6 +473,7 @@ impl Executor {
             phase,
             protocol_data,
             system_contract_cache,
+            &mut call_stack,
         ) {
             Ok((instance, runtime)) => (instance, runtime),
             Err(error) => {
@@ -512,6 +530,8 @@ impl Executor {
         let mut named_keys: NamedKeys = account.named_keys().clone();
         let base_key = account.account_hash().into();
 
+        let mut call_stack = vec![base_key];
+
         let (instance, mut runtime) = self.create_runtime(
             module,
             EntryPointType::Session,
@@ -533,6 +553,7 @@ impl Executor {
             phase,
             protocol_data,
             system_contract_cache,
+            &mut call_stack,
         )?;
 
         let error: wasmi::Error = match instance.invoke_export(entry_point_name, &[], &mut runtime)
@@ -568,7 +589,7 @@ impl Executor {
         Ok(ret)
     }
 
-    pub fn create_runtime<'a, R>(
+    pub fn create_runtime<'a, 'b, R>(
         &self,
         module: Module,
         entry_point_type: EntryPointType,
@@ -590,7 +611,8 @@ impl Executor {
         phase: Phase,
         protocol_data: ProtocolData,
         system_contract_cache: SystemContractCache,
-    ) -> Result<(ModuleRef, Runtime<'a, R>), Error>
+        call_stack: &'b mut Vec<Key>,
+    ) -> Result<(ModuleRef, Runtime<'a, 'b, R>), Error>
     where
         R: StateReader<Key, StoredValue>,
         R::Error: Into<Error>,
@@ -639,6 +661,7 @@ impl Executor {
             memory,
             module,
             runtime_context,
+            call_stack,
         );
 
         Ok((instance, runtime))

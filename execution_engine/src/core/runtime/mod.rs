@@ -57,13 +57,15 @@ use crate::{
     storage::{global_state::StateReader, protocol_data::ProtocolData},
 };
 
-pub struct Runtime<'a, R> {
+#[allow(dead_code)]
+pub struct Runtime<'a, 'b, R> {
     system_contract_cache: SystemContractCache,
     config: EngineConfig,
     memory: MemoryRef,
     module: Module,
     host_buffer: Option<CLValue>,
     context: RuntimeContext<'a, R>,
+    call_stack: &'b mut Vec<Key>,
 }
 
 pub fn instance_and_memory(
@@ -961,7 +963,7 @@ fn extract_urefs(cl_value: &CLValue) -> Result<Vec<URef>, Error> {
     }
 }
 
-impl<'a, R> Runtime<'a, R>
+impl<'a, 'b, R> Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<Error>,
@@ -972,6 +974,7 @@ where
         memory: MemoryRef,
         module: Module,
         context: RuntimeContext<'a, R>,
+        call_stack: &'b mut Vec<Key>,
     ) -> Self {
         Runtime {
             config,
@@ -980,6 +983,7 @@ where
             module,
             host_buffer: None,
             context,
+            call_stack,
         }
     }
 
@@ -1016,6 +1020,10 @@ where
         T: Into<Gas>,
     {
         self.context.charge_system_contract_call(amount)
+    }
+
+    pub fn call_stack(&self) -> &Vec<Key> {
+        self.call_stack
     }
 
     fn bytes_from_mem(&self, ptr: u32, size: usize) -> Result<Vec<u8>, Error> {
@@ -1349,12 +1357,15 @@ where
             transfers,
         );
 
+        let mut call_stack = vec![base_key];
+
         let mut mint_runtime = Runtime::new(
             self.config,
             SystemContractCache::clone(&self.system_contract_cache),
             self.memory.clone(),
             self.module.clone(),
             mint_context,
+            &mut call_stack,
         );
 
         let system_config = protocol_data.system_config();
@@ -1494,12 +1505,15 @@ where
             transfers,
         );
 
+        let mut call_stack = vec![base_key];
+
         let mut runtime = Runtime::new(
             self.config,
             SystemContractCache::clone(&self.system_contract_cache),
             self.memory.clone(),
             self.module.clone(),
             runtime_context,
+            &mut call_stack,
         );
 
         let system_config = protocol_data.system_config();
@@ -1621,12 +1635,15 @@ where
             transfers,
         );
 
+        let mut call_stack = vec![base_key];
+
         let mut runtime = Runtime::new(
             self.config,
             SystemContractCache::clone(&self.system_contract_cache),
             self.memory.clone(),
             self.module.clone(),
             runtime_context,
+            &mut call_stack,
         );
 
         let system_config = protocol_data.system_config();
@@ -1802,6 +1819,10 @@ where
 
         let context_key = self.get_context_key_for_contract_call(contract_hash, &entry_point)?;
 
+        let contract_package: Key = contract.contract_package_hash().value().into();
+        self.call_stack.push(contract_package);
+        self.call_stack.push(context_key);
+
         self.execute_contract(
             key,
             context_key,
@@ -1883,6 +1904,10 @@ where
         }
 
         let context_key = self.get_context_key_for_contract_call(contract_hash, &entry_point)?;
+
+        let contract_package: Key = contract.contract_package_hash().value().into();
+        self.call_stack.push(contract_package);
+        self.call_stack.push(context_key);
 
         self.execute_contract(
             context_key,
@@ -2054,6 +2079,8 @@ where
             self.context.transfers().to_owned(),
         );
 
+        let call_stack: &mut Vec<Key> = self.call_stack;
+
         let mut runtime = Runtime {
             system_contract_cache,
             config,
@@ -2061,9 +2088,12 @@ where
             module,
             host_buffer,
             context,
+            call_stack,
         };
 
         let result = instance.invoke_export(entry_point_name, &[], &mut runtime);
+
+        println!("execute_contract: {:?}", runtime.call_stack());
 
         // The `runtime`'s context was initialized with our counter from before the call and any gas
         // charged by the sub-call was added to its counter - so let's copy the correct value of the

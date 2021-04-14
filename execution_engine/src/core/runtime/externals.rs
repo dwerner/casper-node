@@ -19,7 +19,7 @@ use crate::{
     storage::global_state::StateReader,
 };
 
-impl<'a, R> Externals for Runtime<'a, R>
+impl<'a, 'b, R> Externals for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<Error>,

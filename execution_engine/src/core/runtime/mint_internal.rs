@@ -22,7 +22,7 @@ impl From<execution::Error> for Option<Error> {
     }
 }
 
-impl<'a, R> RuntimeProvider for Runtime<'a, R>
+impl<'a, 'b, R> RuntimeProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -43,7 +43,7 @@ where
 }
 
 // TODO: update Mint + StorageProvider to better handle errors
-impl<'a, R> StorageProvider for Runtime<'a, R>
+impl<'a, 'b, R> StorageProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -114,7 +114,7 @@ where
     }
 }
 
-impl<'a, R> SystemProvider for Runtime<'a, R>
+impl<'a, 'b, R> SystemProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -134,7 +134,7 @@ where
     }
 }
 
-impl<'a, R> Mint for Runtime<'a, R>
+impl<'a, 'b, R> Mint for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,

@@ -27,7 +27,7 @@ impl From<execution::Error> for Option<ApiError> {
     }
 }
 
-impl<'a, R> AccountProvider for Runtime<'a, R>
+impl<'a, 'b, R> AccountProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -39,7 +39,7 @@ where
     }
 }
 
-impl<'a, R> MintProvider for Runtime<'a, R>
+impl<'a, 'b, R> MintProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -62,7 +62,7 @@ where
     }
 }
 
-impl<'a, R> HandlePaymentProvider for Runtime<'a, R>
+impl<'a, 'b, R> HandlePaymentProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -87,7 +87,7 @@ where
     }
 }
 
-impl<'a, R> StandardPayment for Runtime<'a, R>
+impl<'a, 'b, R> StandardPayment for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,

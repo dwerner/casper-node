@@ -28,7 +28,7 @@ impl From<execution::Error> for Option<Error> {
     }
 }
 
-impl<'a, R> StorageProvider for Runtime<'a, R>
+impl<'a, 'b, R> StorageProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -101,7 +101,7 @@ where
     }
 }
 
-impl<'a, R> SystemProvider for Runtime<'a, R>
+impl<'a, 'b, R> SystemProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -139,7 +139,7 @@ where
     }
 }
 
-impl<'a, R> RuntimeProvider for Runtime<'a, R>
+impl<'a, 'b, R> RuntimeProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -161,7 +161,7 @@ where
     }
 }
 
-impl<'a, R> MintProvider for Runtime<'a, R>
+impl<'a, 'b, R> MintProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -217,7 +217,7 @@ where
     }
 }
 
-impl<'a, R> AccountProvider for Runtime<'a, R>
+impl<'a, 'b, R> AccountProvider for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,
@@ -231,7 +231,7 @@ where
     }
 }
 
-impl<'a, R> Auction for Runtime<'a, R>
+impl<'a, 'b, R> Auction for Runtime<'a, 'b, R>
 where
     R: StateReader<Key, StoredValue>,
     R::Error: Into<execution::Error>,

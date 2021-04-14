@@ -1196,6 +1196,8 @@ where
 
         let mut named_keys = mint.named_keys().clone();
 
+        let mut call_stack = Vec::new();
+
         let (_instance, mut runtime) = self
             .executor
             .create_runtime(
@@ -1219,6 +1221,7 @@ where
                 Phase::System,
                 self.protocol_data,
                 Default::default(),
+                &mut call_stack,
             )
             .map_err(|_| GenesisError::UnableToCreateRuntime)?;
 

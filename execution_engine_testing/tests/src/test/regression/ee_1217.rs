@@ -16,22 +16,26 @@ const CONTRACT_CALL_AUCTION_ENTRYPOINT: &str = "call_auction";
 #[ignore]
 #[test]
 fn should_fail_to_call_auction_as_non_session_code() {
-    let default_public_key_arg = *DEFAULT_ACCOUNT_PUBLIC_KEY;
+    let default_public_key_arg = DEFAULT_ACCOUNT_PUBLIC_KEY.clone();
+    let mut builder = InMemoryWasmTestBuilder::default();
+    builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST);
+
+    println!("that was genesis");
+
     let add_bid_request = ExecuteRequestBuilder::standard(
         *DEFAULT_ACCOUNT_ADDR,
         CONTRACT_ADD_BID,
         runtime_args! {
             auction::ARG_AMOUNT => U512::one(), // zero results in Error::BondTooSmall
-            auction::ARG_PUBLIC_KEY => default_public_key_arg,
+            auction::ARG_PUBLIC_KEY => default_public_key_arg.clone(),
             auction::ARG_DELEGATION_RATE => 0u8,
         },
     )
     .build();
 
-    let mut builder = InMemoryWasmTestBuilder::default();
-    builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST);
-
     builder.exec(add_bid_request).commit().expect_success();
+
+    println!("that was adding a bid");
 
     let store_call_auction_request = ExecuteRequestBuilder::standard(
         *DEFAULT_ACCOUNT_ADDR,
@@ -45,6 +49,8 @@ fn should_fail_to_call_auction_as_non_session_code() {
         .commit()
         .expect_success();
 
+    println!("that was storing a contract");
+
     let call_auction_request = ExecuteRequestBuilder::versioned_contract_call_by_hash_key_name(
         *DEFAULT_ACCOUNT_ADDR,
         PACKAGE_NAME,
@@ -57,6 +63,8 @@ fn should_fail_to_call_auction_as_non_session_code() {
     .build();
 
     builder.exec(call_auction_request);
+
+    println!("that was calling the auction through that contract");
 
     builder.expect_failure();
 }
