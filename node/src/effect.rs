@@ -72,6 +72,7 @@ use std::{
 };
 
 use datasize::DataSize;
+
 use futures::{channel::oneshot, future::BoxFuture, FutureExt};
 use once_cell::sync::Lazy;
 use serde::{de::DeserializeOwned, Serialize};
@@ -130,6 +131,9 @@ use requests::{
 };
 
 use self::announcements::BlocklistAnnouncement;
+use casper_execution_engine::core::engine_state::query::{
+    GetKeysWithPrefixResult, ReadRequest, ReadResult,
+};
 
 /// A resource that will never be available, thus trying to acquire it will wait forever.
 static UNOBTAINABLE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(0));
@@ -1475,6 +1479,44 @@ impl<REv> EffectBuilder<REv> {
         self.make_request(
             |responder| ContractRuntimeRequest::GetProtocolData {
                 protocol_version,
+                responder,
+            },
+            QueueKind::Regular,
+        )
+        .await
+    }
+
+    /// Get all keys with the given prefix.
+    pub(crate) async fn get_keys_with_prefix(
+        self,
+        state_root_hash: Blake2bHash,
+        prefix: Vec<u8>,
+    ) -> Result<GetKeysWithPrefixResult, engine_state::Error>
+    where
+        REv: From<ContractRuntimeRequest>,
+    {
+        self.make_request(
+            |responder| ContractRuntimeRequest::GetKeysWithPrefix {
+                state_root_hash,
+                prefix,
+                responder,
+            },
+            QueueKind::Regular,
+        )
+        .await
+    }
+
+    /// Performs a read under the given key.
+    pub(crate) async fn read_under_key(
+        self,
+        read_request: ReadRequest,
+    ) -> Result<ReadResult, engine_state::Error>
+    where
+        REv: From<ContractRuntimeRequest>,
+    {
+        self.make_request(
+            |responder| ContractRuntimeRequest::Read {
+                read_request,
                 responder,
             },
             QueueKind::Regular,

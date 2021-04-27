@@ -1,13 +1,22 @@
 // TODO - remove once schemars stops causing warning.
 #![allow(clippy::field_reassign_with_default)]
 
+use std::{collections::BTreeMap, convert::TryFrom};
+
 use datasize::DataSize;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::types::json_compatibility::vectorize;
-use casper_execution_engine::shared::account::Account as ExecutionEngineAccount;
-use casper_types::{account::AccountHash, NamedKey, URef};
+use casper_execution_engine::shared::account::{
+    Account as ExecutionEngineAccount, ActionThresholds as ExecutionEngineActionThresholds,
+    AssociatedKeys,
+};
+use casper_types::{
+    account::{AccountHash, Weight},
+    key::FromStrError,
+    Key, NamedKey, URef,
+};
 
 #[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, DataSize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -55,5 +64,45 @@ impl From<&ExecutionEngineAccount> for Account {
                 key_management: ee_account.action_thresholds().key_management().value(),
             },
         }
+    }
+}
+
+impl TryFrom<Account> for ExecutionEngineAccount {
+    type Error = FromStrError;
+
+    fn try_from(account: Account) -> Result<Self, Self::Error> {
+        let account_hash = account.account_hash;
+        let named_keys = {
+            let mut tmp = BTreeMap::new();
+            for named_key in account.named_keys {
+                let name = named_key.name;
+                let key_str = named_key.key;
+                let key: Key = Key::from_formatted_str(&key_str)?;
+                tmp.insert(name, key);
+            }
+            tmp
+        };
+        let main_purse = account.main_purse;
+        let associated_keys = {
+            let mut tmp = BTreeMap::new();
+            for associated_key in account.associated_keys {
+                let account_hash = associated_key.account_hash;
+                let weight = Weight::new(associated_key.weight);
+                tmp.insert(account_hash, weight);
+            }
+            AssociatedKeys::from(tmp)
+        };
+        let action_thresholds = ExecutionEngineActionThresholds::new(
+            Weight::new(account.action_thresholds.deployment),
+            Weight::new(account.action_thresholds.key_management),
+        )
+        .unwrap(); // TODO
+        Ok(ExecutionEngineAccount::new(
+            account_hash,
+            named_keys,
+            main_purse,
+            associated_keys,
+            action_thresholds,
+        ))
     }
 }

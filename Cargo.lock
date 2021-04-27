@@ -686,7 +686,7 @@ dependencies = [
  "jsonrpc-lite",
  "once_cell",
  "rand 0.8.3",
- "reqwest 0.11.2",
+ "reqwest 0.11.3",
  "semver 0.11.0",
  "serde",
  "serde_json",
@@ -713,15 +713,23 @@ dependencies = [
 name = "casper-engine-test-support"
 version = "1.0.0"
 dependencies = [
+ "anyhow",
  "casper-contract",
  "casper-execution-engine",
+ "casper-node",
  "casper-types",
+ "hex",
+ "jsonrpc-lite",
  "lmdb",
  "log 0.4.14",
  "num-rational 0.4.0",
  "num-traits",
  "once_cell",
  "rand 0.8.3",
+ "reqwest 0.11.3",
+ "serde",
+ "serde_json",
+ "tokio 1.4.0",
  "version-sync",
 ]
 
@@ -4719,9 +4727,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.2"
+version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf12057f289428dbf5c591c74bf10392e4a8003f993405a902f20117019022d4"
+checksum = "2296f2fac53979e8ccbc4a1136b25dcefd37be9ed7e4a1f6b05a6029c84ff124"
 dependencies = [
  "base64",
  "bytes 1.0.1",
