@@ -60,6 +60,7 @@ tempfile = "3.1.0"
 default = ["gens"]
 gens = ["proptest"]
 test-support = []
+rpc_read = []
 
 [[bench]]
 name = "trie_bench"

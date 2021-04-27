@@ -1391,7 +1391,7 @@ pub(crate) mod json_compatibility {
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Eq, DataSize)]
     #[serde(deny_unknown_fields)]
-    struct JsonEraEnd {
+    pub struct JsonEraEnd {
         era_report: JsonEraReport,
         next_era_validator_weights: Vec<ValidatorWeight>,
     }
@@ -1430,17 +1430,17 @@ pub(crate) mod json_compatibility {
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Eq, DataSize)]
     #[serde(deny_unknown_fields)]
-    struct JsonBlockHeader {
-        parent_hash: BlockHash,
-        state_root_hash: Digest,
-        body_hash: Digest,
-        random_bit: bool,
-        accumulated_seed: Digest,
-        era_end: Option<JsonEraEnd>,
-        timestamp: Timestamp,
-        era_id: EraId,
-        height: u64,
-        protocol_version: ProtocolVersion,
+    pub struct JsonBlockHeader {
+        pub parent_hash: BlockHash,
+        pub state_root_hash: Digest,
+        pub body_hash: Digest,
+        pub random_bit: bool,
+        pub accumulated_seed: Digest,
+        pub era_end: Option<JsonEraEnd>,
+        pub timestamp: Timestamp,
+        pub era_id: EraId,
+        pub height: u64,
+        pub protocol_version: ProtocolVersion,
     }
 
     impl From<BlockHeader> for JsonBlockHeader {
@@ -1510,10 +1510,14 @@ pub(crate) mod json_compatibility {
     #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Eq, DataSize)]
     #[serde(deny_unknown_fields)]
     pub struct JsonBlock {
-        hash: BlockHash,
-        header: JsonBlockHeader,
-        body: JsonBlockBody,
-        proofs: Vec<JsonProof>,
+        /// TODO
+        pub hash: BlockHash,
+        /// TODO
+        pub header: JsonBlockHeader,
+        /// TODO
+        pub body: JsonBlockBody,
+        /// TODO
+        pub proofs: Vec<JsonProof>,
     }
 
     impl JsonBlock {

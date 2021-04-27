@@ -4,7 +4,7 @@
 // TODO - remove once schemars stops causing warning.
 #![allow(clippy::field_reassign_with_default)]
 
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -13,10 +13,11 @@ use casper_execution_engine::shared::stored_value::StoredValue as ExecutionEngin
 use casper_types::{
     bytesrepr::{self, ToBytes},
     system::auction::{Bid, EraInfo, UnbondingPurse},
-    CLValue, DeployInfo, Transfer,
+    CLValue, ContractWasm, DeployInfo, Transfer,
 };
 
 use super::{Account, Contract, ContractPackage};
+use casper_types::bytesrepr::Bytes;
 
 /// Representation of a value stored in global state.
 ///
@@ -75,5 +76,58 @@ impl TryFrom<&ExecutionEngineStoredValue> for StoredValue {
         };
 
         Ok(stored_value)
+    }
+}
+
+impl TryFrom<StoredValue> for ExecutionEngineStoredValue {
+    type Error = ();
+
+    fn try_from(value: StoredValue) -> Result<Self, Self::Error> {
+        match value {
+            StoredValue::CLValue(cl_value) => {
+                // No conversion necessary
+                Ok(ExecutionEngineStoredValue::CLValue(cl_value))
+            }
+            StoredValue::Account(json_account) => {
+                let account = json_account.try_into().unwrap(); // TODO
+                Ok(ExecutionEngineStoredValue::Account(account))
+            }
+            StoredValue::ContractWasm(hex_bytes) => {
+                let bytes = hex::decode(hex_bytes).unwrap(); // TODO
+                let bytes_vec: Bytes = bytesrepr::deserialize(bytes).unwrap(); // TODO
+                let contract_wasm = ContractWasm::new(bytes_vec.to_vec());
+                Ok(ExecutionEngineStoredValue::ContractWasm(contract_wasm))
+            }
+            StoredValue::Contract(json_contract) => {
+                let contract = json_contract.try_into().unwrap(); // TODO
+                Ok(ExecutionEngineStoredValue::Contract(contract))
+            }
+            StoredValue::ContractPackage(json_contract_package) => {
+                let contract_package = json_contract_package.try_into().unwrap(); // TODO
+                Ok(ExecutionEngineStoredValue::ContractPackage(
+                    contract_package,
+                ))
+            }
+            StoredValue::Transfer(transfer) => {
+                // No conversion necessary
+                Ok(ExecutionEngineStoredValue::Transfer(transfer))
+            }
+            StoredValue::DeployInfo(deploy_info) => {
+                // No conversion necessary
+                Ok(ExecutionEngineStoredValue::DeployInfo(deploy_info))
+            }
+            StoredValue::EraInfo(era_info) => {
+                // No conversion necessary
+                Ok(ExecutionEngineStoredValue::EraInfo(era_info))
+            }
+            StoredValue::Bid(bid) => {
+                // No conversion necessary
+                Ok(ExecutionEngineStoredValue::Bid(bid))
+            }
+            StoredValue::Withdraw(withdraws) => {
+                // No conversion necessary
+                Ok(ExecutionEngineStoredValue::Withdraw(withdraws))
+            }
+        }
     }
 }

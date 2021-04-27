@@ -6,6 +6,33 @@ use crate::{
     storage::trie::merkle_proof::TrieMerkleProof,
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadRequest {
+    pub state_hash: Blake2bHash,
+    pub key: Key,
+}
+
+impl ReadRequest {
+    pub fn new(state_hash: Blake2bHash, key: Key) -> Self {
+        Self { state_hash, key }
+    }
+}
+
+#[derive(Debug)]
+pub enum ReadResult {
+    RootNotFound,
+    ProofNotFound,
+    Success {
+        trie_merkle_proof: Box<TrieMerkleProof<Key, StoredValue>>,
+    },
+}
+
+#[derive(Debug)]
+pub enum GetKeysWithPrefixResult {
+    RootNotFound,
+    Success { keys: Vec<Key> },
+}
+
 #[derive(Debug)]
 pub enum QueryResult {
     RootNotFound,
