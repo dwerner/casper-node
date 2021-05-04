@@ -243,6 +243,25 @@ where
                 path,
                 responder,
             }) => self.handle_query(effect_builder, state_root_hash, base_key, path, responder),
+            Event::RpcRequest(RpcRequest::Read {
+                read_request,
+                responder,
+            }) => async move {
+                let stored_value_result = effect_builder.read_under_key(read_request).await;
+                responder.respond(stored_value_result).await;
+            }
+            .ignore(),
+            Event::RpcRequest(RpcRequest::GetKeysWithPrefix {
+                state_root_hash,
+                prefix,
+                responder,
+            }) => async move {
+                let keys_result = effect_builder
+                    .get_keys_with_prefix(state_root_hash.into(), prefix)
+                    .await;
+                responder.respond(keys_result).await;
+            }
+            .ignore(),
             Event::RpcRequest(RpcRequest::QueryEraValidators {
                 state_root_hash,
                 protocol_version,

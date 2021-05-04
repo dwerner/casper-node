@@ -1,3 +1,5 @@
+//! TODO
+
 use alloc::{
     format,
     string::{String, ToString},
@@ -104,19 +106,33 @@ pub enum Key {
     Withdraw(AccountHash),
 }
 
+/// TODO
 #[derive(Debug)]
 pub enum FromStrError {
+    /// TODO
     Account(account::FromStrError),
+    /// TODO
     Hash(String),
+    /// TODO
     URef(uref::FromStrError),
+    /// TODO
     Transfer(TransferFromStrError),
+    /// TODO
     DeployInfo(String),
+    /// TODO
     EraInfo(String),
+    /// TODO
     Balance(String),
+    /// TODO
     Bid(String),
+    /// TODO
     Withdraw(String),
+    /// TODO
     UnknownPrefix,
 }
+
+#[cfg(feature = "std")]
+impl std::error::Error for FromStrError {}
 
 impl From<account::FromStrError> for FromStrError {
     fn from(error: account::FromStrError) -> Self {

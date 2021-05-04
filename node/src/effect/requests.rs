@@ -22,7 +22,10 @@ use casper_execution_engine::{
         balance::{BalanceRequest, BalanceResult},
         era_validators::GetEraValidatorsError,
         genesis::GenesisResult,
-        query::{GetBidsRequest, GetBidsResult, QueryRequest, QueryResult},
+        query::{
+            GetBidsRequest, GetBidsResult, GetKeysWithPrefixResult, QueryRequest, QueryResult,
+            ReadRequest, ReadResult,
+        },
         step::{StepRequest, StepResult},
         upgrade::{UpgradeConfig, UpgradeResult},
     },
@@ -624,6 +627,22 @@ pub enum RpcRequest<I> {
         /// Responder to call with the result.
         responder: Responder<Option<String>>,
     },
+    /// Read
+    Read {
+        /// TODO
+        read_request: ReadRequest,
+        /// TODO
+        responder: Responder<Result<ReadResult, engine_state::Error>>,
+    },
+    /// GetKeysWithPrefix
+    GetKeysWithPrefix {
+        /// TODO
+        state_root_hash: Digest,
+        /// TODO
+        prefix: Vec<u8>,
+        /// TODO
+        responder: Responder<Result<GetKeysWithPrefixResult, engine_state::Error>>,
+    },
 }
 
 impl<I> Display for RpcRequest<I> {
@@ -676,6 +695,10 @@ impl<I> Display for RpcRequest<I> {
             RpcRequest::GetPeers { .. } => write!(formatter, "get peers"),
             RpcRequest::GetStatus { .. } => write!(formatter, "get status"),
             RpcRequest::GetMetrics { .. } => write!(formatter, "get metrics"),
+            RpcRequest::Read { .. } => write!(formatter, "read"),
+            RpcRequest::GetKeysWithPrefix { prefix, .. } => {
+                write!(formatter, "get keys with prefix {}", hex::encode(prefix))
+            }
         }
     }
 }
@@ -750,6 +773,24 @@ pub enum ContractRuntimeRequest {
         query_request: QueryRequest,
         /// Responder to call with the query result.
         responder: Responder<Result<QueryResult, engine_state::Error>>,
+    },
+    /// A read request.
+    Read {
+        /// Read request.
+        #[serde(skip_serializing)]
+        read_request: ReadRequest,
+        /// Responder to the call with the read result.
+        responder: Responder<Result<ReadResult, engine_state::Error>>,
+    },
+    /// Get keys with prefix.
+    GetKeysWithPrefix {
+        /// TODO
+        state_root_hash: Blake2bHash,
+        #[serde(skip_serializing)]
+        /// Prefix of the keys to match.
+        prefix: Vec<u8>,
+        /// Responder to the call with the keys matching the prefix.
+        responder: Responder<Result<GetKeysWithPrefixResult, engine_state::Error>>,
     },
     /// A balance request.
     GetBalance {
@@ -893,6 +934,12 @@ impl Display for ContractRuntimeRequest {
                     "find missing descendants of trie_key: {}",
                     trie_key
                 )
+            }
+            ContractRuntimeRequest::Read { read_request, .. } => {
+                write!(formatter, "read: {:?}", read_request)
+            }
+            ContractRuntimeRequest::GetKeysWithPrefix { prefix, .. } => {
+                write!(formatter, "get keys with prefix: {:?}", prefix)
             }
         }
     }

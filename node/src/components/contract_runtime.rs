@@ -24,15 +24,20 @@ use tracing::{debug, error, trace};
 
 use casper_execution_engine::{
     core::engine_state::{
-        self, genesis::GenesisResult, step::EvictItem, DeployItem, EngineConfig, EngineState,
-        ExecuteRequest, GetEraValidatorsError, GetEraValidatorsRequest, RewardItem, SlashItem,
-        StepRequest, StepResult,
+        self,
+        genesis::GenesisResult,
+        query::{GetKeysWithPrefixResult, ReadResult},
+        step::EvictItem,
+        DeployItem, EngineConfig, EngineState, ExecuteRequest, GetEraValidatorsError,
+        GetEraValidatorsRequest, RewardItem, SlashItem, StepRequest, StepResult,
     },
     shared::newtypes::{Blake2bHash, CorrelationId},
     storage::{
-        error::lmdb::Error as StorageLmdbError, global_state::lmdb::LmdbGlobalState,
+        error::lmdb::Error as StorageLmdbError,
+        global_state::{lmdb::LmdbGlobalState, StateProvider, StateReader},
         protocol_data_store::lmdb::LmdbProtocolDataStore,
-        transaction_source::lmdb::LmdbEnvironment, trie_store::lmdb::LmdbTrieStore,
+        transaction_source::lmdb::LmdbEnvironment,
+        trie_store::lmdb::LmdbTrieStore,
     },
 };
 use casper_types::{
@@ -337,6 +342,66 @@ where
                                 .commit_upgrade
                                 .observe(start.elapsed().as_secs_f64());
                             debug!(?result, "upgrade result");
+                            responder.respond(result).await
+                        }
+                        .ignore()
+                    }
+                    ContractRuntimeRequest::Read {
+                        read_request,
+                        responder,
+                    } => {
+                        trace!(?read_request, "read");
+                        let engine_state = Arc::clone(&self.engine_state);
+                        let metrics = Arc::clone(&self.metrics);
+                        async move {
+                            let correlation_id = CorrelationId::new();
+                            let start = Instant::now();
+                            let result = match engine_state
+                                .state()
+                                .checkout(read_request.state_hash)
+                            {
+                                Ok(Some(view)) => {
+                                    match view.read_with_proof(correlation_id, &read_request.key) {
+                                        Ok(Some(trie_merkle_proof)) => {
+                                            let trie_merkle_proof = Box::new(trie_merkle_proof);
+                                            Ok(ReadResult::Success { trie_merkle_proof })
+                                        }
+                                        Ok(None) => Ok(ReadResult::ProofNotFound),
+                                        Err(err) => Err(err),
+                                    }
+                                }
+                                Ok(None) => Ok(ReadResult::RootNotFound),
+                                Err(err) => Err(err),
+                            };
+                            metrics.run_query.observe(start.elapsed().as_secs_f64());
+                            trace!(?result, "read result");
+                            responder.respond(result.map_err(Into::into)).await;
+                        }
+                        .ignore()
+                    }
+                    ContractRuntimeRequest::GetKeysWithPrefix {
+                        state_root_hash,
+                        prefix,
+                        responder,
+                    } => {
+                        trace!(?prefix, "get keys with prefix");
+                        let engine_state = Arc::clone(&self.engine_state);
+                        let metrics = Arc::clone(&self.metrics);
+                        async move {
+                            let correlation_id = CorrelationId::new();
+                            let start = Instant::now();
+                            let result = match engine_state.state().checkout(state_root_hash) {
+                                Ok(Some(view)) => {
+                                    match view.keys_with_prefix(correlation_id, &prefix) {
+                                        Ok(keys) => Ok(GetKeysWithPrefixResult::Success { keys }),
+                                        Err(error) => Err(error.into()),
+                                    }
+                                }
+                                Ok(None) => Ok(GetKeysWithPrefixResult::RootNotFound),
+                                Err(error) => Err(error.into()),
+                            };
+                            metrics.run_query.observe(start.elapsed().as_secs_f64());
+                            trace!(?result, "get keys with prefix result");
                             responder.respond(result).await
                         }
                         .ignore()
