@@ -1099,31 +1099,24 @@ where
         self.system_contract_cache
             .initialize_with_protocol_data(&protocol_data, &system_module);
 
-        let base_key = Key::Account(deploy_item.address);
-
         // Get addr bytes from `address` (which is actually a Key)
         // validation_spec_3: account validity
-        let account_hash = match base_key.into_account() {
-            Some(account_addr) => account_addr,
-            None => {
-                return Ok(ExecutionResult::precondition_failure(
-                    error::Error::Authorization,
-                ));
-            }
-        };
 
         let authorization_keys = deploy_item.authorization_keys;
 
         // Get account from tracking copy
         // validation_spec_3: account validity
-        let account = match self.get_authorized_account(
-            correlation_id,
-            account_hash,
-            &authorization_keys,
-            Rc::clone(&tracking_copy),
-        ) {
-            Ok(account) => account,
-            Err(e) => return Ok(ExecutionResult::precondition_failure(e)),
+        let account = {
+            let account_hash = deploy_item.address;
+            match self.get_authorized_account(
+                correlation_id,
+                account_hash,
+                &authorization_keys,
+                Rc::clone(&tracking_copy),
+            ) {
+                Ok(account) => account,
+                Err(e) => return Ok(ExecutionResult::precondition_failure(e)),
+            }
         };
 
         let session = deploy_item.session;
@@ -1237,6 +1230,7 @@ where
                 is_standard_payment,
             ) = match payment_metadata {
                 DeployMetadata::System {
+                    base_key,
                     contract_package,
                     entry_point,
                     ..
@@ -1249,6 +1243,7 @@ where
                     true,
                 ),
                 DeployMetadata::Session {
+                    base_key,
                     module,
                     contract_package,
                     entry_point,
@@ -1465,6 +1460,7 @@ where
                 )
             }
             DeployMetadata::Session {
+                base_key,
                 module,
                 contract_package,
                 entry_point,
@@ -1576,7 +1572,7 @@ where
 
                 let maybe_runtime_args = RuntimeArgs::try_new(|args| {
                     args.insert(handle_payment::ARG_AMOUNT, finalize_cost_motes.value())?;
-                    args.insert(handle_payment::ARG_ACCOUNT, account_hash)?;
+                    args.insert(handle_payment::ARG_ACCOUNT, account.account_hash())?;
                     args.insert(handle_payment::ARG_TARGET, proposer_purse)?;
                     Ok(())
                 });

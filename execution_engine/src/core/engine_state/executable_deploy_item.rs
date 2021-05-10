@@ -159,16 +159,19 @@ impl ExecutableDeployItem {
             ExecutableDeployItem::ModuleBytes { module_bytes, .. } => {
                 let is_payment = matches!(phase, Phase::Payment);
                 if is_payment && module_bytes.is_empty() {
+                    let base_key = account.account_hash().into();
                     return Ok(DeployMetadata::System {
-                        base_key: account.account_hash().into(),
+                        base_key,
                         contract: Contract::default(),
                         contract_package: ContractPackage::default(),
                         entry_point: EntryPoint::default(),
                     });
                 }
 
+                let base_key = account.account_hash().into();
                 let module = preprocessor.preprocess(&module_bytes.as_ref())?;
                 return Ok(DeployMetadata::Session {
+                    base_key,
                     module,
                     contract_package: ContractPackage::default(),
                     entry_point: EntryPoint::default(),
@@ -289,11 +292,15 @@ impl ExecutableDeployItem {
         let module = wasm_prep::deserialize(contract_wasm.bytes())?;
 
         match entry_point.entry_point_type() {
-            EntryPointType::Session => Ok(DeployMetadata::Session {
-                module,
-                contract_package,
-                entry_point,
-            }),
+            EntryPointType::Session => {
+                let base_key = account.account_hash().into();
+                Ok(DeployMetadata::Session {
+                    base_key,
+                    module,
+                    contract_package,
+                    entry_point,
+                })
+            }
             EntryPointType::Contract => Ok(DeployMetadata::Contract {
                 module,
                 base_key,
@@ -680,6 +687,7 @@ impl Distribution<ExecutableDeployItem> for Standard {
 #[derive(Clone, Debug)]
 pub enum DeployMetadata {
     Session {
+        base_key: Key,
         module: Module,
         contract_package: ContractPackage,
         entry_point: EntryPoint,
