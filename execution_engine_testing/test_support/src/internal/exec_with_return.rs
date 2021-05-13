@@ -146,13 +146,15 @@ where
         )
         .expect("should get wasm module");
 
-    let module = parity_module.take_module().expect("should have module");
+    let module = parity_module.take_module();
 
     let (instance, memory) =
         runtime::instance_and_memory(module.clone(), protocol_version, &wasm_config)
             .expect("should be able to make wasm instance from module");
 
-    let mut call_stack = vec![base_key];
+    let mut call_stack = vec![
+    // todo!()
+    ];
 
     let mut runtime = Runtime::new(
         config,

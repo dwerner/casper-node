@@ -1,4 +1,4 @@
-use std::{fs, process::Output};
+use std::{fmt::Write, fs, process::Output};
 
 use assert_cmd::Command;
 use once_cell::sync::Lazy;
@@ -29,16 +29,33 @@ fn should_fail_when_target_path_already_exists() {
     fs::remove_dir_all(&test_dir).unwrap();
 }
 
-/// Runs `cmd` and returns the `Output` if successful, or panics on failure.
+/// Runs `cmd` and returns the `Output` if successful, or panics and outputs stderr and stdout of
+/// the underlying command on failure.
 fn output_from_command(mut command: Command) -> Output {
     match command.ok() {
         Ok(output) => output,
         Err(error) => {
-            panic!(
-                "\nFailed to execute {:?}\n===== stderr begin =====\n{}\n===== stderr end =====\n",
-                command,
-                String::from_utf8_lossy(&error.as_output().unwrap().stderr)
-            );
+            let output = error.as_output().unwrap();
+            let mut output_message = String::new();
+            writeln!(output_message).unwrap();
+            writeln!(output_message, "Failed to execute {:?}", command).unwrap();
+            writeln!(output_message, "===== stderr begin =====").unwrap();
+            writeln!(
+                output_message,
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+            .unwrap();
+            writeln!(output_message, "===== stderr end =====").unwrap();
+            writeln!(output_message, "===== stdout begin =====").unwrap();
+            writeln!(
+                output_message,
+                "{}",
+                String::from_utf8_lossy(&output.stdout)
+            )
+            .unwrap();
+            writeln!(output_message, "===== stdout end =====").unwrap();
+            panic!(output_message);
         }
     }
 }

@@ -24,6 +24,7 @@ use std::{
     rc::Rc,
 };
 
+use executable_deploy_item::DeployKind;
 use num_rational::Ratio;
 use once_cell::sync::Lazy;
 use tracing::{debug, error};
@@ -65,8 +66,8 @@ pub use self::{
 use crate::{
     core::{
         engine_state::{
-            executable_deploy_item::DeployMetadata, execution_result::ExecutionResultBuilder,
-            genesis::GenesisInstaller, upgrade::SystemUpgrader,
+            execution_result::ExecutionResultBuilder, genesis::GenesisInstaller,
+            upgrade::SystemUpgrader,
         },
         execution::{self, DirectSystemContractCall, Executor},
         tracking_copy::{TrackingCopy, TrackingCopyExt},
@@ -1221,55 +1222,20 @@ where
             };
 
             // payment_code_spec_2: execute payment code
-            let (
-                payment_module,
-                payment_base_key,
-                mut payment_named_keys,
-                payment_package,
-                payment_entry_point,
-                is_standard_payment,
-            ) = match payment_metadata {
-                DeployMetadata::System {
-                    base_key,
-                    contract_package,
-                    entry_point,
-                    ..
-                } => (
-                    system_module.clone(),
-                    base_key,                     // this is account key
-                    account.named_keys().clone(), // standard payment uses account keys
-                    contract_package,
-                    entry_point,
-                    true,
-                ),
-                DeployMetadata::Session {
-                    base_key,
-                    module,
-                    contract_package,
-                    entry_point,
-                } => (
-                    module,
-                    base_key, // this is account key
-                    account.named_keys().clone(),
-                    contract_package,
-                    entry_point,
-                    false,
-                ),
-                DeployMetadata::Contract {
-                    module,
-                    base_key,
-                    contract,
-                    contract_package,
-                    entry_point,
-                } => (
-                    module,
-                    base_key, // this is contract key
-                    contract.named_keys().clone(),
-                    contract_package,
-                    entry_point,
-                    false,
-                ),
+            let payment_base_key = payment_metadata.base_key;
+            let is_standard_payment = payment_metadata.kind == DeployKind::System;
+            let payment_package = payment_metadata.contract_package;
+            let payment_module = if payment_metadata.kind == DeployKind::System {
+                system_module.clone()
+            } else {
+                payment_metadata.module
             };
+            let mut payment_named_keys = if payment_metadata.kind == DeployKind::Contract {
+                payment_metadata.contract.named_keys().clone()
+            } else {
+                account.named_keys().clone()
+            };
+            let payment_entry_point = payment_metadata.entry_point;
 
             let payment_args = payment.args().clone();
             let system_contract_cache = SystemContractCache::clone(&self.system_contract_cache);
@@ -1437,54 +1403,19 @@ where
         let post_payment_tracking_copy = tracking_copy.borrow();
         let session_tracking_copy = Rc::new(RefCell::new(post_payment_tracking_copy.fork()));
 
-        // session_code_spec_2: execute session code
-        let (
-            session_module,
-            session_base_key,
-            mut session_named_keys,
-            session_package,
-            session_entry_point,
-        ) = match session_metadata {
-            DeployMetadata::System {
-                base_key,
-                contract,
-                contract_package,
-                entry_point,
-            } => {
-                (
-                    system_module.clone(),
-                    base_key, // this is contract key
-                    contract.named_keys().clone(),
-                    contract_package,
-                    entry_point,
-                )
-            }
-            DeployMetadata::Session {
-                base_key,
-                module,
-                contract_package,
-                entry_point,
-            } => (
-                module,
-                base_key,
-                account.named_keys().clone(),
-                contract_package,
-                entry_point,
-            ),
-            DeployMetadata::Contract {
-                module,
-                base_key,
-                contract,
-                contract_package,
-                entry_point,
-            } => (
-                module,
-                base_key,
-                contract.named_keys().clone(),
-                contract_package,
-                entry_point,
-            ),
+        let session_base_key = session_metadata.base_key;
+        let session_module = if session_metadata.kind == DeployKind::System {
+            system_module.clone()
+        } else {
+            session_metadata.module
         };
+        let mut session_named_keys = if session_metadata.kind != DeployKind::Session {
+            session_metadata.contract.named_keys().clone()
+        } else {
+            account.named_keys().clone()
+        };
+        let session_package = session_metadata.contract_package;
+        let session_entry_point = session_metadata.entry_point;
 
         let session_args = session.args().clone();
         let mut session_result = {

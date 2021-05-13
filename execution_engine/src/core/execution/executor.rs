@@ -20,7 +20,9 @@ use crate::{
             system_contract_cache::SystemContractCache, EngineConfig,
         },
         execution::{address_generator::AddressGenerator, Error},
-        runtime::{extract_access_rights_from_keys, instance_and_memory, Runtime},
+        runtime::{
+            extract_access_rights_from_keys, instance_and_memory, CallStackElement, Runtime,
+        },
         runtime_context::{self, RuntimeContext},
         tracking_copy::TrackingCopy,
     },
@@ -167,7 +169,9 @@ impl Executor {
         );
 
         println!("base_key: {:?}", base_key);
-        let mut call_stack = vec![base_key];
+        let mut call_stack = vec![
+            // todo!(), //CallStackElement::session()
+        ];
 
         let mut runtime = Runtime::new(
             self.config,
@@ -314,7 +318,10 @@ impl Executor {
             Rc::new(RefCell::new(generator))
         };
 
-        let mut call_stack = vec![payment_base_key];
+        let mut call_stack = vec![
+            // todo!(),
+            //payment_base_key
+        ];
 
         let mut runtime = match self.create_runtime(
             system_module,
@@ -450,7 +457,9 @@ impl Executor {
 
         let transfers = Vec::default();
 
-        let mut call_stack = vec![base_key];
+        let mut call_stack = vec![
+            // todo!(),
+        ];
 
         let (_, runtime) = match self.create_runtime(
             module,
@@ -530,7 +539,9 @@ impl Executor {
         let mut named_keys: NamedKeys = account.named_keys().clone();
         let base_key = account.account_hash().into();
 
-        let mut call_stack = vec![base_key];
+        let mut call_stack = vec![
+            // todo!(),
+        ];
 
         let (instance, mut runtime) = self.create_runtime(
             module,
@@ -611,7 +622,7 @@ impl Executor {
         phase: Phase,
         protocol_data: ProtocolData,
         system_contract_cache: SystemContractCache,
-        call_stack: &'b mut Vec<Key>,
+        call_stack: &'b mut Vec<CallStackElement>,
     ) -> Result<(ModuleRef, Runtime<'a, 'b, R>), Error>
     where
         R: StateReader<Key, StoredValue>,

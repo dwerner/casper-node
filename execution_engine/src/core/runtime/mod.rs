@@ -33,9 +33,9 @@ use casper_types::{
         SystemContractType,
     },
     AccessRights, ApiError, CLType, CLTyped, CLValue, ContractHash, ContractPackageHash,
-    ContractVersionKey, ContractWasm, DeployHash, EntryPointType, EraId, Key, Phase,
-    ProtocolVersion, PublicKey, RuntimeArgs, Transfer, TransferResult, TransferredTo, URef, U128,
-    U256, U512,
+    ContractVersionKey, ContractWasm, ContractWasmHash, DeployHash, EntryPointType, EraId, Key,
+    Phase, ProtocolVersion, PublicKey, RuntimeArgs, Transfer, TransferResult, TransferredTo, URef,
+    U128, U256, U512,
 };
 
 use crate::{
@@ -57,6 +57,32 @@ use crate::{
     storage::{global_state::StateReader, protocol_data::ProtocolData},
 };
 
+#[derive(Clone, Debug)]
+pub enum CallStackElement {
+    Session {
+        account_hash: AccountHash,
+    },
+    Contract {
+        contract_package_hash: ContractPackageHash,
+        contract_wasm_hash: ContractWasmHash,
+    },
+}
+
+impl CallStackElement {
+    pub fn session(account_hash: AccountHash) -> Self {
+        CallStackElement::Session { account_hash }
+    }
+    pub fn contract(
+        contract_package_hash: ContractPackageHash,
+        contract_wasm_hash: ContractWasmHash,
+    ) -> Self {
+        CallStackElement::Contract {
+            contract_package_hash,
+            contract_wasm_hash,
+        }
+    }
+}
+
 #[allow(dead_code)]
 pub struct Runtime<'a, 'b, R> {
     system_contract_cache: SystemContractCache,
@@ -65,7 +91,7 @@ pub struct Runtime<'a, 'b, R> {
     module: Module,
     host_buffer: Option<CLValue>,
     context: RuntimeContext<'a, R>,
-    call_stack: &'b mut Vec<Key>,
+    call_stack: &'b mut Vec<CallStackElement>,
 }
 
 pub fn instance_and_memory(
@@ -974,7 +1000,7 @@ where
         memory: MemoryRef,
         module: Module,
         context: RuntimeContext<'a, R>,
-        call_stack: &'b mut Vec<Key>,
+        call_stack: &'b mut Vec<CallStackElement>,
     ) -> Self {
         Runtime {
             config,
@@ -1022,7 +1048,7 @@ where
         self.context.charge_system_contract_call(amount)
     }
 
-    pub fn call_stack(&self) -> &Vec<Key> {
+    pub fn call_stack(&self) -> &Vec<CallStackElement> {
         self.call_stack
     }
 
@@ -1357,7 +1383,9 @@ where
             transfers,
         );
 
-        let mut call_stack = vec![base_key];
+        let mut call_stack = vec![
+            // todo!(), //base_key
+        ];
 
         let mut mint_runtime = Runtime::new(
             self.config,
@@ -1505,7 +1533,9 @@ where
             transfers,
         );
 
-        let mut call_stack = vec![base_key];
+        let mut call_stack = vec![
+            // todo!(), // base_key
+        ];
 
         let mut runtime = Runtime::new(
             self.config,
@@ -1635,7 +1665,9 @@ where
             transfers,
         );
 
-        let mut call_stack = vec![base_key];
+        let mut call_stack = vec![
+            // todo!(), // base_key
+        ];
 
         let mut runtime = Runtime::new(
             self.config,
@@ -1820,8 +1852,9 @@ where
         let context_key = self.get_context_key_for_contract_call(contract_hash, &entry_point)?;
 
         let contract_package: Key = contract.contract_package_hash().value().into();
-        self.call_stack.push(contract_package);
-        self.call_stack.push(context_key);
+
+        // let call_stack_element = CallStackElement::contract(todo!(), todo!());
+        // self.call_stack.push(call_stack_element);
 
         self.execute_contract(
             key,
@@ -1905,9 +1938,7 @@ where
 
         let context_key = self.get_context_key_for_contract_call(contract_hash, &entry_point)?;
 
-        let contract_package: Key = contract.contract_package_hash().value().into();
-        self.call_stack.push(contract_package);
-        self.call_stack.push(context_key);
+        // let call_stack_element = CallStackElement::contract(todo!(), todo!());
 
         self.execute_contract(
             context_key,
@@ -2079,7 +2110,7 @@ where
             self.context.transfers().to_owned(),
         );
 
-        let call_stack: &mut Vec<Key> = self.call_stack;
+        let call_stack: &mut Vec<CallStackElement> = self.call_stack;
 
         let mut runtime = Runtime {
             system_contract_cache,
