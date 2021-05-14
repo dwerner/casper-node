@@ -1225,11 +1225,7 @@ where
             let payment_base_key = payment_metadata.base_key;
             let is_standard_payment = payment_metadata.kind == DeployKind::System;
             let payment_package = payment_metadata.contract_package;
-            let payment_module = if payment_metadata.kind == DeployKind::System {
-                system_module.clone()
-            } else {
-                payment_metadata.module
-            };
+            let payment_module = payment_metadata.module;
             let mut payment_named_keys = if payment_metadata.kind == DeployKind::Contract {
                 payment_metadata.contract.named_keys().clone()
             } else {
@@ -1242,7 +1238,7 @@ where
 
             if is_standard_payment {
                 executor.exec_standard_payment(
-                    system_module.clone(),
+                    payment_module,
                     payment_args,
                     payment_base_key,
                     &account,
@@ -1404,11 +1400,7 @@ where
         let session_tracking_copy = Rc::new(RefCell::new(post_payment_tracking_copy.fork()));
 
         let session_base_key = session_metadata.base_key;
-        let session_module = if session_metadata.kind == DeployKind::System {
-            system_module.clone()
-        } else {
-            session_metadata.module
-        };
+        let session_module = session_metadata.module;
         let mut session_named_keys = if session_metadata.kind != DeployKind::Session {
             session_metadata.contract.named_keys().clone()
         } else {
