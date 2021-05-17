@@ -1851,10 +1851,11 @@ where
 
         let context_key = self.get_context_key_for_contract_call(contract_hash, &entry_point)?;
 
-        let contract_package: Key = contract.contract_package_hash().value().into();
-
-        // let call_stack_element = CallStackElement::contract(todo!(), todo!());
-        // self.call_stack.push(call_stack_element);
+        let call_stack_element = CallStackElement::contract(
+            contract.contract_package_hash(),
+            contract.contract_wasm_hash(),
+        );
+        self.call_stack.push(call_stack_element);
 
         self.execute_contract(
             key,

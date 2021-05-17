@@ -106,6 +106,7 @@ impl Executor {
         protocol_data: ProtocolData,
         system_contract_cache: SystemContractCache,
         contract_package: &ContractPackage,
+        mut call_stack: Vec<CallStackElement>,
     ) -> ExecutionResult
     where
         R: StateReader<Key, StoredValue>,
@@ -168,10 +169,7 @@ impl Executor {
             transfers,
         );
 
-        println!("base_key: {:?}", base_key);
-        let mut call_stack = vec![
-            // todo!(), //CallStackElement::session()
-        ];
+        println!("call_stack: {:#?}", call_stack);
 
         let mut runtime = Runtime::new(
             self.config,
@@ -299,6 +297,7 @@ impl Executor {
         phase: Phase,
         protocol_data: ProtocolData,
         system_contract_cache: SystemContractCache,
+        mut call_stack: Vec<CallStackElement>,
     ) -> ExecutionResult
     where
         R: StateReader<Key, StoredValue>,
@@ -317,11 +316,6 @@ impl Executor {
             let generator = AddressGenerator::new(deploy_hash.as_bytes(), phase);
             Rc::new(RefCell::new(generator))
         };
-
-        let mut call_stack = vec![
-            // todo!(),
-            //payment_base_key
-        ];
 
         let mut runtime = match self.create_runtime(
             system_module,

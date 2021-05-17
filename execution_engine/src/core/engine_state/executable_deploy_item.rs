@@ -31,6 +31,7 @@ use crate::{
     core::{
         engine_state::{Error, ExecError, MAX_PAYMENT_AMOUNT},
         execution,
+        runtime::CallStackElement,
         tracking_copy::{TrackingCopy, TrackingCopyExt},
     },
     shared::{
@@ -694,6 +695,20 @@ pub enum DeployKind {
 impl DeployMetadata {
     pub fn take_module(self) -> Module {
         self.module
+    }
+
+    pub fn call_stack_element(&self) -> CallStackElement {
+        match self.kind {
+            DeployKind::Session => {
+                let account = self.base_key.into_account().unwrap();
+                CallStackElement::session(account)
+            }
+            DeployKind::System | DeployKind::Contract => {
+                let contract_package_hash = self.contract.contract_package_hash();
+                let contract_wasm_hash = self.contract.contract_wasm_hash();
+                CallStackElement::contract(contract_package_hash, contract_wasm_hash)
+            }
+        }
     }
 }
 

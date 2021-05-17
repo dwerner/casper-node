@@ -1221,6 +1221,9 @@ where
                 }
             };
 
+            let payment_call_stack_element = payment_metadata.call_stack_element();
+            let payment_call_stack = vec![payment_call_stack_element];
+
             // payment_code_spec_2: execute payment code
             let payment_base_key = payment_metadata.base_key;
             let is_standard_payment = payment_metadata.kind == DeployKind::System;
@@ -1253,6 +1256,7 @@ where
                     phase,
                     protocol_data,
                     system_contract_cache,
+                    payment_call_stack,
                 )
             } else {
                 executor.exec(
@@ -1273,6 +1277,7 @@ where
                     protocol_data,
                     system_contract_cache,
                     &payment_package,
+                    payment_call_stack,
                 )
             }
         };
@@ -1399,6 +1404,9 @@ where
         let post_payment_tracking_copy = tracking_copy.borrow();
         let session_tracking_copy = Rc::new(RefCell::new(post_payment_tracking_copy.fork()));
 
+        let session_call_stack_element = session_metadata.call_stack_element();
+        let session_call_stack = vec![session_call_stack_element];
+
         let session_base_key = session_metadata.base_key;
         let session_module = session_metadata.module;
         let mut session_named_keys = if session_metadata.kind != DeployKind::Session {
@@ -1447,6 +1455,7 @@ where
                 protocol_data,
                 system_contract_cache,
                 &session_package,
+                session_call_stack,
             )
         };
         debug!("Session result: {:?}", session_result);
