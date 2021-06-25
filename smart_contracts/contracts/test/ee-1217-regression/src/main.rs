@@ -15,7 +15,8 @@ use casper_types::{
 const PACKAGE_NAME: &str = "call_auction";
 const PACKAGE_ACCESS_KEY_NAME: &str = "call_auction_access";
 
-const METHOD_CALL_AUCTION_NAME: &str = "call_auction";
+const METHOD_CALL_AUCTION_CONTRACT_NAME: &str = "call_auction_contract";
+const METHOD_CALL_AUCTION_SESSION_NAME: &str = "call_auction_session";
 
 #[no_mangle]
 pub extern "C" fn call_auction() {
@@ -30,17 +31,35 @@ pub extern "C" fn call_auction() {
 }
 
 #[no_mangle]
+pub extern "C" fn call_auction_contract() {
+    call_auction()
+}
+
+#[no_mangle]
+pub extern "C" fn call_auction_session() {
+    call_auction()
+}
+
+#[no_mangle]
 pub extern "C" fn call() {
     let entry_points = {
         let mut entry_points = EntryPoints::new();
-        let entry_point = EntryPoint::new(
-            METHOD_CALL_AUCTION_NAME.to_string(),
+        let session_entry_point = EntryPoint::new(
+            METHOD_CALL_AUCTION_SESSION_NAME.to_string(),
+            vec![],
+            CLType::Unit,
+            EntryPointAccess::Public,
+            EntryPointType::Session,
+        );
+        let contract_entry_point = EntryPoint::new(
+            METHOD_CALL_AUCTION_CONTRACT_NAME.to_string(),
             vec![],
             CLType::Unit,
             EntryPointAccess::Public,
             EntryPointType::Contract,
         );
-        entry_points.add_entry_point(entry_point);
+        entry_points.add_entry_point(session_entry_point);
+        entry_points.add_entry_point(contract_entry_point);
         entry_points
     };
 
