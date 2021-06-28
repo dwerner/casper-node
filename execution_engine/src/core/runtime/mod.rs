@@ -1194,6 +1194,21 @@ where
         Ok(Ok(()))
     }
 
+    /// TODO
+    fn get_immediate_caller(&self) -> Option<&CallStackElement> {
+        let call_stack = self.call_stack();
+        let mut call_stack_iter = call_stack.iter().rev();
+        call_stack_iter.next()?;
+        call_stack_iter.next()
+    }
+
+    /// TODO
+    fn get_current_call_stack_element(&self) -> Option<&CallStackElement> {
+        let call_stack = self.call_stack();
+        let mut call_stack_iter = call_stack.iter().rev();
+        call_stack_iter.next()
+    }
+
     /// Writes runtime context's phase to dest_ptr in the Wasm memory.
     fn get_phase(&mut self, dest_ptr: u32) -> Result<(), Trap> {
         let phase = self.context.phase();
@@ -3001,6 +3016,20 @@ where
         id: Option<u64>,
     ) -> Result<TransferResult, Error> {
         let source = self.context.get_main_purse()?;
+        let originating_caller: AccountHash = self.context.get_caller();
+        match self.get_current_call_stack_element() {
+            Some(&CallStackElement::Session { account_hash })
+                if account_hash != originating_caller =>
+            {
+                // this should never happen
+                return Err(Error::InvalidContext);
+            }
+            Some(&CallStackElement::StoredSession { .. }) => {
+                // stored session code is not allowed to call this method
+                return Err(Error::InvalidContext);
+            }
+            _ => {}
+        };
         self.transfer_from_purse_to_account(source, target, amount, id)
     }
 
