@@ -86,6 +86,7 @@ fn should_measure_gas_cost() {
     //
     // Measure host functions
     //
+
     let exec_request_3 = ExecuteRequestBuilder::contract_call_by_hash(
         *DEFAULT_ACCOUNT_ADDR,
         contract_hash,
