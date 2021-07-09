@@ -4681,6 +4681,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "retrieve-state"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "casper-contract",
+ "casper-execution-engine",
+ "casper-node",
+ "casper-types",
+ "hex",
+ "jsonrpc-lite",
+ "lmdb",
+ "log 0.4.14",
+ "num-rational 0.4.0",
+ "num-traits",
+ "once_cell",
+ "rand 0.8.4",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "version-sync",
+]
+
+[[package]]
 name = "revert"
 version = "0.1.0"
 dependencies = [
