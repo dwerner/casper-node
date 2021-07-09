@@ -11,10 +11,7 @@ use lmdb::DatabaseFlags;
 use reqwest::Client;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::json;
-use tokio::{
-    fs::File,
-    io::{AsyncWriteExt, BufWriter},
-};
+use tokio::{fs::File, io::AsyncWriteExt};
 
 use casper_execution_engine::{
     shared::{
@@ -41,9 +38,9 @@ use casper_node::{
 use casper_types::Key;
 
 const RPC_SERVER: &str = "http://localhost:11101/rpc";
-const LMDB_PATH: &str = "lmdb_data";
-const CHAIN_DOWNLOAD_PATH: &str = "chain-download";
-const DEFAULT_TEST_MAX_DB_SIZE: usize = 52_428_800; // 50 MiB
+pub const LMDB_PATH: &str = "lmdb-data";
+pub const CHAIN_DOWNLOAD_PATH: &str = "chain-download";
+const DEFAULT_TEST_MAX_DB_SIZE: usize = 483_183_820_800; // 450 gb
 const DEFAULT_TEST_MAX_READERS: u32 = 512;
 
 pub async fn get_block<'de, T>(
@@ -107,12 +104,16 @@ where
     T: DeserializeOwned,
 {
     let url = RPC_SERVER;
-    let method = "get_deploy";
+    let method = "info_get_deploy";
     let params = Params::from(json!(params));
     let rpc_req = JsonRpc::request_with_params(12345, method, params);
     let response = client.post(url).json(&rpc_req).send().await?;
     let rpc_res: JsonRpc = response.json().await?;
+    if let Some(error) = rpc_res.get_error() {
+        return Err(anyhow::format_err!(error.clone()));
+    }
     let value = rpc_res.get_result().unwrap();
+    // GetDeployResult?
     let stored_value = value.get("deploy").unwrap();
     let deserialized = serde_json::from_value(stored_value.clone())?;
     Ok(deserialized)
@@ -132,9 +133,9 @@ impl BlockWithDeploys {
             self.block.header.height,
             hex::encode(self.block.hash)
         ));
-        let mut writer = BufWriter::new(File::create(file_path).await?);
-        let json = serde_json::to_vec(self)?;
-        writer.write_all(&json).await?;
+        let mut file = File::create(file_path).await?;
+        let json = serde_json::to_string_pretty(self)?;
+        file.write_all(json.as_bytes()).await?;
         Ok(())
     }
 }
@@ -182,9 +183,10 @@ pub async fn download_chain_to_disk(
     mut block_hash: BlockHash,
     until_height: u64,
 ) -> Result<(), anyhow::Error> {
-    // go back by parent hashes, to genesis
     let chain_download_path = env::current_dir()?.join(CHAIN_DOWNLOAD_PATH);
-    tokio::fs::create_dir_all(chain_download_path).await?;
+    if !Path::exists(&chain_download_path) {
+        tokio::fs::create_dir_all(chain_download_path).await?;
+    }
     loop {
         let block_with_deploys = download_block_with_deploys(client, block_hash).await?;
         block_with_deploys.save(CHAIN_DOWNLOAD_PATH.into()).await?;
@@ -204,7 +206,7 @@ pub async fn lmdb_copy_trie_by_keys(
     let remote_state_root_hash: [u8; Digest::LENGTH] = state_root_hash.to_array();
     let remote_state_root_hash_str: String = hex::encode(remote_state_root_hash);
     println!(
-        "remote_state_root_hash_str: {:?}",
+        "Found remote state root hash: {:?}",
         remote_state_root_hash_str
     );
 
@@ -261,15 +263,17 @@ pub async fn lmdb_copy_trie_by_keys(
 
     let correlation_id = CorrelationId::new();
 
-    println!("downloaded {} transforms", transforms.len());
+    println!("Downloaded {} transforms", transforms.len());
 
     let state_root = global_state
         .commit(correlation_id, initial_root_hash, transforms)
         .unwrap();
 
-    println!("checking that state root matches");
+    println!("Checking that state root matches");
+
     assert_eq!(state_root, remote_state_root_hash.into());
-    println!("downloaded state root matches expected {:?}", state_root);
+
+    println!("Downloaded state root matches expected {:?}", state_root);
 
     Ok(())
 }
