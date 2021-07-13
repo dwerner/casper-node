@@ -5,6 +5,7 @@
 
 use std::str;
 
+use casper_execution_engine::storage::protocol_data::ProtocolData;
 use futures::{future::BoxFuture, FutureExt};
 use http::Response;
 use hyper::Body;
@@ -42,6 +43,15 @@ static GET_PEERS_RESULT: Lazy<GetPeersResult> = Lazy::new(|| GetPeersResult {
     api_version: DOCS_EXAMPLE_PROTOCOL_VERSION,
     peers: GetStatusResult::doc_example().peers.clone(),
 });
+static GET_PROTOCOL_DATA_PARAMS: Lazy<GetProtocolDataParams> =
+    Lazy::new(|| GetProtocolDataParams {
+        protocol_version: Default::default(),
+    });
+static GET_PROTOCOL_DATA_RESULT: Lazy<GetProtocolDataResult> =
+    Lazy::new(|| GetProtocolDataResult {
+        protocol_version: Default::default(),
+        protocol_data: Default::default(),
+    });
 
 /// Params for "info_get_deploy" RPC request.
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
@@ -221,6 +231,69 @@ impl RpcWithoutParamsExt for GetStatus {
             // Convert to `ResponseResult` and send.
             let body = Self::ResponseResult::new(status_feed, api_version);
             Ok(response_builder.success(body)?)
+        }
+        .boxed()
+    }
+}
+
+/// Params for "info_get_deploy" RPC request.
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetProtocolDataParams {
+    /// The protocol version.
+    pub protocol_version: ProtocolVersion,
+}
+
+impl DocExample for GetProtocolDataParams {
+    fn doc_example() -> &'static Self {
+        &*GET_PROTOCOL_DATA_PARAMS
+    }
+}
+
+/// Result for "info_get_deploy" RPC response.
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetProtocolDataResult {
+    /// The ProtocolVersion.
+    #[schemars(with = "String")]
+    pub protocol_version: ProtocolVersion,
+
+    /// The protocol data.
+    pub protocol_data: Option<ProtocolData>,
+}
+
+impl DocExample for GetProtocolDataResult {
+    fn doc_example() -> &'static Self {
+        &*GET_PROTOCOL_DATA_RESULT
+    }
+}
+
+/// "info_get_deploy" RPC.
+pub struct GetProtocolData {}
+
+impl RpcWithParams for GetProtocolData {
+    const METHOD: &'static str = "info_get_protocol_data";
+    type RequestParams = GetProtocolDataParams;
+    type ResponseResult = GetProtocolDataResult;
+}
+
+impl RpcWithParamsExt for GetProtocolData {
+    fn handle_request<REv: ReactorEventT>(
+        effect_builder: EffectBuilder<REv>,
+        response_builder: Builder,
+        params: Self::RequestParams,
+        _api_version: ProtocolVersion,
+    ) -> BoxFuture<'static, Result<Response<Body>, Error>> {
+        async move {
+            let maybe_protocol_data = effect_builder
+                .get_protocol_data(params.protocol_version)
+                .await
+                .map_err(|err| Error(format!("unable to get_protocol_data {:?}", err)))?;
+            let result = Self::ResponseResult {
+                protocol_version: params.protocol_version,
+                protocol_data: maybe_protocol_data.map(|data| *data),
+            };
+            Ok(response_builder.success(result)?)
         }
         .boxed()
     }

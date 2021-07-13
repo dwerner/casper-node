@@ -149,3 +149,5 @@ cmake-build-debug/
 
 # client c headers
 client/headers/**
+utils/dry-run-deploys/lmdb-data/data.lmdb
+utils/dry-run-deploys/lmdb-data/data.lmdb-lock

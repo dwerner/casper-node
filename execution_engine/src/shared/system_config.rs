@@ -5,6 +5,7 @@ pub mod standard_payment_costs;
 
 use datasize::DataSize;
 use rand::{distributions::Standard, prelude::*, Rng};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use casper_types::bytesrepr::{self, FromBytes, ToBytes};
@@ -15,7 +16,7 @@ use self::{
 };
 use crate::storage::protocol_data::DEFAULT_WASMLESS_TRANSFER_COST;
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug, DataSize)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Debug, DataSize)]
 pub struct SystemConfig {
     /// Wasmless transfer cost expressed in gas.
     wasmless_transfer_cost: u32,

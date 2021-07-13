@@ -1,9 +1,13 @@
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
+
 use casper_types::{
     bytesrepr::{self, FromBytes, ToBytes},
     ContractHash, HashAddr,
 };
+
+use schemars::JsonSchema;
 
 use crate::shared::{system_config::SystemConfig, wasm_config::WasmConfig};
 
@@ -11,13 +15,17 @@ const DEFAULT_ADDRESS: [u8; 32] = [0; 32];
 pub const DEFAULT_WASMLESS_TRANSFER_COST: u32 = 10_000;
 
 /// Represents a protocol's data. Intended to be associated with a given protocol version.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct ProtocolData {
     wasm_config: WasmConfig,
     system_config: SystemConfig,
+    #[schemars(with = "String", description = "Hex encoded contract hash.")]
     mint: ContractHash,
+    #[schemars(with = "String", description = "Hex encoded contract hash.")]
     handle_payment: ContractHash,
+    #[schemars(with = "String", description = "Hex encoded contract hash.")]
     standard_payment: ContractHash,
+    #[schemars(with = "String", description = "Hex encoded contract hash.")]
     auction: ContractHash,
 }
 

@@ -13,6 +13,7 @@ members = [
     "types",
     "utils/global-state-update-gen",
     "utils/retrieve-state",
+    "utils/dry-run-deploys",
 ]
 
 default-members = [
@@ -27,6 +28,7 @@ default-members = [
     "types",
     "utils/global-state-update-gen",
     "utils/retrieve-state",
+    "utils/dry-run-deploys",
 ]
 
 exclude = ["casper-node-macros"]

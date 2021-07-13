@@ -21,9 +21,9 @@ use rand_chacha::ChaCha20Rng;
 
 pub use block::{
     json_compatibility::JsonBlock, Block, BlockBody, BlockHash, BlockHeader, BlockSignatures,
-    BlockValidationError, FinalitySignature,
+    BlockValidationError, FinalitySignature, FinalizedBlock,
 };
-pub(crate) use block::{BlockByHeight, BlockHeaderWithMetadata, BlockPayload, FinalizedBlock};
+pub(crate) use block::{BlockByHeight, BlockHeaderWithMetadata, BlockPayload};
 pub(crate) use chainspec::ActivationPoint;
 pub use chainspec::Chainspec;
 pub use datasize::DataSize;

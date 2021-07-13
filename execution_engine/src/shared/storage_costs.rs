@@ -1,5 +1,6 @@
 use datasize::DataSize;
 use rand::{distributions::Standard, prelude::*, Rng};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use casper_types::{
@@ -11,7 +12,7 @@ use super::gas::Gas;
 
 pub const DEFAULT_GAS_PER_BYTE_COST: u32 = 625_000;
 
-#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Debug, DataSize)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Debug, DataSize)]
 pub struct StorageCosts {
     /// Gas charged per byte stored in the global state.
     gas_per_byte: u32,

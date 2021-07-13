@@ -9,7 +9,7 @@ use std::{
 use jsonrpc_lite::{JsonRpc, Params};
 use lmdb::DatabaseFlags;
 use reqwest::Client;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 use tokio::{fs::File, io::AsyncWriteExt};
 
@@ -37,11 +37,12 @@ use casper_node::{
 };
 use casper_types::Key;
 
+// TODO: make these parameters
 const RPC_SERVER: &str = "http://localhost:11101/rpc";
 pub const LMDB_PATH: &str = "lmdb-data";
 pub const CHAIN_DOWNLOAD_PATH: &str = "chain-download";
-const DEFAULT_TEST_MAX_DB_SIZE: usize = 483_183_820_800; // 450 gb
-const DEFAULT_TEST_MAX_READERS: u32 = 512;
+pub const DEFAULT_TEST_MAX_DB_SIZE: usize = 483_183_820_800; // 450 gb
+pub const DEFAULT_TEST_MAX_READERS: u32 = 512;
 
 pub async fn get_block<'de, T>(
     client: &mut Client,
@@ -62,6 +63,29 @@ where
     Ok(deserialized)
 }
 
+pub async fn get_protocol_data<'de, T, P>(
+    client: &mut Client,
+    params: P,
+) -> Result<T, anyhow::Error>
+where
+    T: DeserializeOwned,
+    P: Serialize,
+{
+    let url = RPC_SERVER;
+    let method = "info_get_protocol_data";
+    let params = Params::from(json!(params));
+    let rpc_req = JsonRpc::request_with_params(12345, method, params);
+    let response = client.post(url).json(&rpc_req).send().await?;
+    let rpc_res: JsonRpc = response.json().await?;
+    if let Some(error) = rpc_res.get_error() {
+        return Err(anyhow::format_err!(error.clone()));
+    }
+    let value = rpc_res.get_result().unwrap();
+    let keys = value.get("protocol_data").unwrap();
+    let deserialized = serde_json::from_value(keys.clone())?;
+    Ok(deserialized)
+}
+
 async fn get_keys<'de, T, P>(client: &mut Client, params: P) -> Result<T, anyhow::Error>
 where
     T: DeserializeOwned,
@@ -73,6 +97,9 @@ where
     let rpc_req = JsonRpc::request_with_params(12345, method, params);
     let response = client.post(url).json(&rpc_req).send().await?;
     let rpc_res: JsonRpc = response.json().await?;
+    if let Some(error) = rpc_res.get_error() {
+        return Err(anyhow::format_err!(error.clone()));
+    }
     let value = rpc_res.get_result().unwrap();
     let keys = value.get("keys").unwrap();
     let deserialized = serde_json::from_value(keys.clone())?;
@@ -119,17 +146,17 @@ where
     Ok(deserialized)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BlockWithDeploys {
-    block: JsonBlock,
-    transfers: Vec<Deploy>,
-    deploys: Vec<Deploy>,
+    pub block: JsonBlock,
+    pub transfers: Vec<Deploy>,
+    pub deploys: Vec<Deploy>,
 }
 
 impl BlockWithDeploys {
     pub async fn save(&self, path: PathBuf) -> Result<(), anyhow::Error> {
         let file_path = path.join(format!(
-            "block-{}-{}.json",
+            "block-{:0>24}-{}.json",
             self.block.header.height,
             hex::encode(self.block.hash)
         ));
@@ -178,7 +205,7 @@ pub async fn download_block_with_deploys(
     })
 }
 
-pub async fn download_chain_to_disk(
+pub async fn download_blocks(
     client: &mut Client,
     mut block_hash: BlockHash,
     until_height: u64,
@@ -199,7 +226,7 @@ pub async fn download_chain_to_disk(
     Ok(())
 }
 
-pub async fn lmdb_copy_trie_by_keys(
+pub async fn download_trie_by_keys(
     client: &mut Client,
     state_root_hash: Digest,
 ) -> Result<(), anyhow::Error> {

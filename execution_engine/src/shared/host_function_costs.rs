@@ -1,5 +1,6 @@
 use datasize::DataSize;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use casper_types::bytesrepr::{self, FromBytes, ToBytes, U32_SERIALIZED_LENGTH};
@@ -83,7 +84,7 @@ pub(crate) const DEFAULT_HOST_FUNCTION_NEW_DICTIONARY: HostFunction<[Cost; 1]> =
 ///
 /// Total gas cost is equal to `cost` + sum of each argument weight multiplied by the byte size of
 /// the data.
-#[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize, Debug, DataSize)]
+#[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Debug, DataSize)]
 pub struct HostFunction<T> {
     /// How much user is charged for cost only
     cost: Cost,
@@ -188,7 +189,7 @@ where
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Debug, DataSize)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Debug, DataSize)]
 pub struct HostFunctionCosts {
     pub read_value: HostFunction<[Cost; 3]>,
     #[serde(alias = "read_value_local")]

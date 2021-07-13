@@ -1,7 +1,10 @@
 //! Contract Runtime component.
 mod config;
 mod error;
-mod operations;
+
+/// Contract Runtime related operations module.
+pub mod operations;
+
 mod types;
 
 use std::{
@@ -72,7 +75,8 @@ pub struct ExecutionPreState {
 }
 
 impl ExecutionPreState {
-    pub(crate) fn new(
+    /// Create a new instance of ExecutionPreState.
+    pub fn new(
         pre_state_root_hash: Digest,
         next_block_height: u64,
         parent_hash: BlockHash,
@@ -301,8 +305,7 @@ where
                 async move {
                     let correlation_id = CorrelationId::new();
                     let start = Instant::now();
-                    let result = match engine_state.state.checkout(read_request.state_hash.clone())
-                    {
+                    let result = match engine_state.state.checkout(read_request.state_hash) {
                         Ok(Some(view)) => {
                             match view.read_with_proof(correlation_id, &read_request.key) {
                                 Ok(Some(trie_merkle_proof)) => {
@@ -333,7 +336,7 @@ where
                 async move {
                     let correlation_id = CorrelationId::new();
                     let start = Instant::now();
-                    let result = match engine_state.state.checkout(state_root_hash.clone()) {
+                    let result = match engine_state.state.checkout(state_root_hash) {
                         Ok(Some(view)) => match view.keys_with_prefix(correlation_id, &prefix) {
                             Ok(keys) => Ok(GetKeysWithPrefixResult::Success { keys }),
                             Err(error) => Err(error.into()),
@@ -486,7 +489,7 @@ where
                 async move {
                     let result = operations::execute_finalized_block(
                         engine_state.as_ref(),
-                        metrics.as_ref(),
+                        Some(metrics.as_ref()),
                         protocol_version,
                         execution_pre_state,
                         finalized_block,
@@ -656,7 +659,7 @@ impl ContractRuntime {
             maybe_step_execution_effect,
         } = match operations::execute_finalized_block(
             self.engine_state.as_ref(),
-            self.metrics.as_ref(),
+            Some(self.metrics.as_ref()),
             protocol_version,
             execution_pre_state,
             finalized_block,
