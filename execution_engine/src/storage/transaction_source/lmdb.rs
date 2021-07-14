@@ -82,6 +82,24 @@ impl LmdbEnvironment {
             .set_map_size(map_size)
             .set_max_readers(max_readers)
             .open(&path.as_ref().join(EE_DB_FILENAME))?;
+
+        Ok(LmdbEnvironment { env })
+    }
+
+    pub fn with_flags<P: AsRef<Path>>(
+        path: P,
+        map_size: usize,
+        max_readers: u32,
+        env_flags: EnvironmentFlags,
+    ) -> Result<Self, error::Error> {
+        let env = Environment::new()
+            // Set the flag to manage our own directory like in the storage component.
+            .set_flags(EnvironmentFlags::NO_SUB_DIR | env_flags)
+            .set_max_dbs(MAX_DBS)
+            .set_map_size(map_size)
+            .set_max_readers(max_readers)
+            .open(&path.as_ref().join(EE_DB_FILENAME))?;
+
         Ok(LmdbEnvironment { env })
     }
 

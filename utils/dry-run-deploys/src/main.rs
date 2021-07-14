@@ -1,16 +1,10 @@
 use std::env;
 
-use casper_execution_engine::storage::{global_state::StateProvider, protocol_data::ProtocolData};
+use casper_node::components::contract_runtime::ExecutionPreState;
+
+use lmdb::EnvironmentFlags;
 use reqwest::Client;
-use tokio::{fs::File, io::AsyncReadExt};
-use walkdir::DirEntry;
-
-use casper_node::{
-    components::contract_runtime::ExecutionPreState, crypto::hash::Digest,
-    rpcs::info::GetProtocolDataParams, types::BlockHash,
-};
-
-use retrieve_state::BlockWithDeploys;
+use retrieve_state::{offline, BlockWithDeploys};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -18,90 +12,68 @@ async fn main() -> Result<(), anyhow::Error> {
         .join("../retrieve-state")
         .join(retrieve_state::CHAIN_DOWNLOAD_PATH);
 
-    println!("chain path: {}", chain_path.display());
-    let mut block_files = walkdir::WalkDir::new(chain_path)
-        .into_iter()
-        .filter_map(|entry| entry.ok())
-        .filter_map(|entry| {
-            let file_name = entry.file_name().to_str()?;
-            let split = file_name.split('-').collect::<Vec<&str>>();
-            if let ["block", _height, _hash] = &split[..] {
-                Some(entry)
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
+    let lmdb_path = env::current_dir()?
+        //.join("../retrieve-state")
+        .join(retrieve_state::LMDB_PATH);
 
-    block_files.sort_by_key(|entry| entry.file_name().to_str().unwrap().to_string());
+    let block_files = offline::get_block_files(chain_path);
 
-    let engine_state = dry_run_deploys::create_execution_engine()?;
+    let genesis_block = offline::read_block_file(&block_files[0]).await?;
 
-    let genesis_block_file_entry = &block_files[0];
-    let BlockWithDeploys {
-        block: genesis_block,
-        ..
-    } = read_block_file(genesis_block_file_entry).await?;
+    // let engine_state = offline::load_execution_engine(
+    //     lmdb_path,
+    //     genesis_block.block.header.state_root_hash.into(),
+    // )?;
 
-    // if we can't find this block in the trie, download it from a running node
-    if !matches!(
-        engine_state.read_trie(
-            Default::default(),
-            genesis_block.header.state_root_hash.into()
-        ),
-        Ok(Some(_))
-    ) {
+    let fast_options = EnvironmentFlags::NO_SYNC
+        | EnvironmentFlags::NO_META_SYNC
+        | EnvironmentFlags::NO_LOCK
+        | EnvironmentFlags::WRITE_MAP;
+
+    let engine_state = if false {
+        offline::create_execution_engine(lmdb_path, EnvironmentFlags::empty())?
+    } else {
+        offline::create_execution_engine(lmdb_path, fast_options)?
+    };
+
+    // TODO: remove this network call block, this is supposed to be offline only
+    // executing block file
+    // Some("block-000000000000000000000000-8747e82a80e0d2c8356106c0d05d2322bed0c5bd0ffb47d045263d1e92ced9a4.
+    // json") Executing block at height 0, with 0 transfers, 0 deploys
+    // took 0 ms
+    // executing block file
+    // Some("block-000000000000000000000001-465ce367e98cf85bcd272c16dd2be9dcc27ab965da4417086a97808617743929.
+    // json") Executing block at height 1, with 3 transfers, 0 deploys
+    // Error: Root not found:
+    // Blake2bHash(0xa6154f741548b55ecb662a248da2a1a249ac7288f02db9e3b49f02272ed1766f)
+    if true {
         let mut client = Client::new();
-        retrieve_state::download_trie_by_keys(&mut client, genesis_block.header.state_root_hash)
+        retrieve_state::download_genesis_global_state(
+            &mut client,
+            &engine_state,
+            &genesis_block.block,
+        )
+        .await?;
+
+        retrieve_state::download_protocol_data_for_blocks(&mut client, &engine_state, &block_files)
             .await?;
     }
 
-    // Ensure we have all protocol data downloaded
-    for block_file_entry in block_files.iter() {
-        let BlockWithDeploys { block, .. } = read_block_file(block_file_entry).await?;
-        if !matches!(
-            engine_state.get_protocol_data(block.header.protocol_version),
-            Ok(Some(_)),
-        ) {
-            let mut client = Client::new();
-            let maybe_protocol_data: Option<ProtocolData> = retrieve_state::get_protocol_data(
-                &mut client,
-                GetProtocolDataParams {
-                    protocol_version: genesis_block.header.protocol_version,
-                },
-            )
-            .await?;
-            let protocol_data = maybe_protocol_data.unwrap_or_else(|| {
-                panic!(
-                    "unable to get protocol data for {}",
-                    block.header.protocol_version
-                )
-            });
+    let mut execution_pre_state = offline::get_genesis_execution_prestate(&genesis_block.block);
 
-            engine_state
-                .state
-                .put_protocol_data(block.header.protocol_version, &protocol_data)?;
-        }
-    }
-
-    let mut execution_pre_state = ExecutionPreState::new(
-        genesis_block.header.state_root_hash,
-        0,
-        BlockHash::new(Digest::from([0u8; Digest::LENGTH])),
-        Digest::from([0u8; Digest::LENGTH]),
-    );
+    println!("block, transfer_count, deploy_count, execution_time_ms");
     for block_file_entry in block_files.iter() {
         let BlockWithDeploys {
             block,
             transfers,
             mut deploys,
-        } = read_block_file(block_file_entry).await?;
+        } = offline::read_block_file(block_file_entry).await?;
         deploys.extend(transfers);
 
-        println!(
-            "executing block file {:?}",
-            block_file_entry.file_name().to_str()
-        );
+        // println!(
+        //     "executing block file {:?}",
+        //     block_file_entry.file_name().to_str()
+        // );
         let block_and_execution_effects = dry_run_deploys::execute_json_block(
             &engine_state,
             block,
@@ -112,13 +84,4 @@ async fn main() -> Result<(), anyhow::Error> {
         execution_pre_state = ExecutionPreState::from(&header);
     }
     Ok(())
-}
-
-async fn read_block_file(block_file_entry: &DirEntry) -> Result<BlockWithDeploys, anyhow::Error> {
-    let mut file = File::open(block_file_entry.path()).await?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).await?;
-    Ok(serde_json::from_slice::<retrieve_state::BlockWithDeploys>(
-        &buffer,
-    )?)
 }

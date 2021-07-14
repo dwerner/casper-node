@@ -1,43 +1,45 @@
-use std::{env, path::Path};
+use std::env;
 
+use lmdb::EnvironmentFlags;
 use reqwest::Client;
 
 use casper_node::types::JsonBlock;
 
-use retrieve_state::get_block;
+use retrieve_state::offline;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let mut client = Client::new();
-
+    let lmdb_path = env::current_dir()?.join(retrieve_state::LMDB_PATH);
     let chain_download_path = env::current_dir()?.join(retrieve_state::CHAIN_DOWNLOAD_PATH);
 
-    println!("Getting highest block...");
-    let block: JsonBlock = get_block(&mut client, None).await?;
+    let engine_state =
+        retrieve_state::offline::create_execution_engine(lmdb_path, EnvironmentFlags::NO_SYNC)?;
+    let genesis_block: JsonBlock = retrieve_state::get_block(&mut client, None).await?;
 
-    println!("Downloading global state using highest block's state-root-hash...");
-    retrieve_state::download_trie_by_keys(&mut client, block.header.state_root_hash).await?;
+    println!("Downloading genesis global state...");
+    retrieve_state::download_genesis_global_state(&mut client, &engine_state, &genesis_block)
+        .await?;
 
-    let download_until_height = if Path::exists(chain_download_path.as_path()) {
-        let existing_chain = walkdir::WalkDir::new(retrieve_state::CHAIN_DOWNLOAD_PATH);
-        let mut highest_downloaded_block = 0;
-        for entry in existing_chain {
-            if let Some(filename) = entry?.file_name().to_str() {
-                let split = filename.split('-').collect::<Vec<&str>>();
-                if let ["block", height, _hash] = &split[..] {
-                    let height: u64 = height.parse::<u64>()?;
-                    highest_downloaded_block = highest_downloaded_block.max(height);
-                }
-            }
-        }
-        highest_downloaded_block + 1
-    } else {
-        0
+    let download_until_height = match offline::get_highest_block_downloaded(&chain_download_path)? {
+        Some(highest_block_downloaded) => highest_block_downloaded + 1,
+        _ => 0,
     };
     println!(
         "Downloading blocks with deploys since height {}...",
         download_until_height
     );
-    retrieve_state::download_blocks(&mut client, block.hash, download_until_height).await?;
+    let highest_block: JsonBlock = retrieve_state::get_block(&mut client, None).await?;
+    let block_files = retrieve_state::download_blocks(
+        &mut client,
+        &chain_download_path,
+        highest_block.hash,
+        download_until_height,
+    )
+    .await?;
+
+    retrieve_state::download_protocol_data_for_blocks(&mut client, &engine_state, &block_files)
+        .await?;
+
     Ok(())
 }
