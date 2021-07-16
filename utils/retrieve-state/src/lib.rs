@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     convert::TryInto,
     fs,
     path::{Path, PathBuf},
@@ -34,7 +34,6 @@ use casper_execution_engine::{
     },
 };
 use casper_node::{
-    components::contract_runtime::ExecutionPreState,
     crypto::hash::Digest,
     rpcs::{
         chain::{BlockIdentifier, GetBlockParams},
@@ -64,6 +63,9 @@ where
     let rpc_req = JsonRpc::request_with_params(12345, method, params);
     let response = client.post(url).json(&rpc_req).send().await?;
     let rpc_res: JsonRpc = response.json().await?;
+    if let Some(error) = rpc_res.get_error() {
+        return Err(anyhow::format_err!(error.clone()));
+    }
     let value = rpc_res.get_result().unwrap();
     let block = value.get("block").unwrap();
     let deserialized = serde_json::from_value(block.clone())?;
@@ -321,29 +323,30 @@ pub async fn download_protocol_data_for_blocks(
     engine_state: &EngineState<LmdbGlobalState>,
     block_file_entries: &[DirEntry],
 ) -> Result<(), anyhow::Error> {
+    let mut unique_protocol_versions = HashSet::new();
+
     for block_file_entry in block_file_entries.iter() {
         let BlockWithDeploys { block, .. } = offline::read_block_file(block_file_entry).await?;
+        unique_protocol_versions.insert(block.header.protocol_version);
+    }
+    for protocol_version in unique_protocol_versions.into_iter() {
         if !matches!(
-            engine_state.get_protocol_data(block.header.protocol_version),
+            engine_state.get_protocol_data(protocol_version),
             Ok(Some(_)),
         ) {
             let maybe_protocol_data: Option<ProtocolData> = get_protocol_data(
                 client,
                 GetProtocolDataParams {
-                    protocol_version: block.header.protocol_version,
+                    protocol_version: protocol_version,
                 },
             )
             .await?;
-            let protocol_data = maybe_protocol_data.unwrap_or_else(|| {
-                panic!(
-                    "unable to get protocol data for {}",
-                    block.header.protocol_version
-                )
-            });
+            let protocol_data = maybe_protocol_data
+                .unwrap_or_else(|| panic!("unable to get protocol data for {}", protocol_version));
 
             engine_state
                 .state
-                .put_protocol_data(block.header.protocol_version, &protocol_data)?;
+                .put_protocol_data(protocol_version, &protocol_data)?;
         }
     }
     Ok(())
@@ -393,15 +396,6 @@ pub mod offline {
             None
         };
         Ok(highest)
-    }
-
-    pub fn get_genesis_execution_prestate(genesis_block: &JsonBlock) -> ExecutionPreState {
-        ExecutionPreState::new(
-            genesis_block.header.state_root_hash,
-            0,
-            BlockHash::new(Digest::from([0u8; Digest::LENGTH])),
-            Digest::from([0u8; Digest::LENGTH]),
-        )
     }
 
     pub fn get_block_files(chain_path: impl AsRef<Path>) -> Vec<DirEntry> {
